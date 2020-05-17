@@ -10,8 +10,8 @@ function createSafe(combination)
     isMinigame = not isMinigame
     if isMinigame then        
         InitializeSafe(combination)
-        playFx("mini@safe_cracking", "idle_base")
         while isMinigame do
+            playFx("mini@safe_cracking", "idle_base")
             FreezeEntityPosition(PlayerPedId(), true)
             DrawSprites(true)
             res = RunMiniGame()
