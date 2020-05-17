@@ -1,12 +1,7 @@
-local Tunnel = module("vrp","lib/Tunnel")
-local Proxy = module("vrp","lib/Proxy")
-vRP = Proxy.getInterface("vRP")
-
 _SafeCrackingStates = "Setup"
 _onSpot             = false
 _try                = 0
 isMinigame          = false
-timer               = 0
 
 function createSafe(combination) 
     RequestStreamedTextureDict( "MPSafeCracking", false )
@@ -15,7 +10,7 @@ function createSafe(combination)
     isMinigame = not isMinigame
     if isMinigame then        
         InitializeSafe(combination)
-        vRP.playAnim(false, {{"mini@safe_cracking", "idle_base"}}, true)
+        playFx("mini@safe_cracking", "idle_base")
         while isMinigame do
             FreezeEntityPosition(PlayerPedId(), true)
             DrawSprites(true)
@@ -226,7 +221,14 @@ function EndMiniGame(safeUnlocked)
     isMinigame = false
     SafeCrackingStates = "Setup"
     FreezeEntityPosition(PlayerPedId(),false)
-    vRP.stopAnim()
+    ClearPedTasks(PlayerPedId())
 end
+
+function playFx(dict,anim)
+    RequestAnimDict(dict)
+    while not HasAnimDictLoaded(dict) do Wait(10) end
+    TaskPlayAnim(PlayerPedId(), dict, anim, 1.5, 1.5, -1, 16, 0, 0, 0, 0)
+end
+
 
 exports("createSafe", createSafe)
