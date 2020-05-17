@@ -10,6 +10,6 @@ local res = exports["pd-safe"]:createSafe({math.random(0,99)})
 `````
 *The final result is returned as soon as the minigame is finished*
 
-*This code was originaly developed in C#. You can access the original repositorie by clicking on the [following link](https://github.com/TimothyDexter/FiveM-SafeCrackingMiniGame)*
+*This code was originally developed in C#. You can access the original repository by clicking on the [following link](https://github.com/TimothyDexter/FiveM-SafeCrackingMiniGame)*
 
 [Sample Video](https://www.youtube.com/watch?v=bmsPNMACUsY)
