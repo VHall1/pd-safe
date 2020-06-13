@@ -2,6 +2,7 @@ _SafeCrackingStates = "Setup"
 _onSpot             = false
 _try                = 0
 isMinigame          = false
+lastDialRotationAmount = 0
 
 function createSafe(combination) 
     RequestStreamedTextureDict( "MPSafeCracking", false )
@@ -84,18 +85,20 @@ function RunMiniGame()
         if IsControlJustPressed( 0, 32 ) then
             if _onSpot then
                 ReleaseCurrentPin()
+                lastDialRotationAmount = 0
                 _onSpot = false
                 if IsSafeUnlocked() then
                     EndMiniGame( true, false )
                     return true
                 end
             else
-                print(_try)
                 if _try >= 3 then
                     EndMiniGame(false)
+                    lastDialRotationAmount = 0
                     return false
                 else
                     _try = _try + 1
+                    lastDialRotationAmount = 0
                     PlaySoundFrontend(0, "TUMBLER_RESET", "SAFE_CRACK_SOUNDSET", true )
                 end
             end
@@ -112,15 +115,18 @@ function RunMiniGame()
             local currentDialNumber = GetCurrentSafeDialNumber(SafeDialRotation)
             local correctMovement = _requiredDialRotationDirection ~= "Idle" and
                                   (_currentDialRotationDirection == _requiredDialRotationDirection or
-                                   _lastDialRotationDirection == _requiredDialRotationDirection)
-            
+                                   _lastDialRotationDirection == _requiredDialRotationDirection)  
             if correctMovement then
                 local pinUnlocked = _safeLockStatus[_currentLockNum] and currentDialNumber == _safeCombination[_currentLockNum]
-                if pinUnlocked then
+                if pinUnlocked and lastDialRotationAmount >= 25  then
                     PlaySoundFrontend(0, "TUMBLER_PIN_FALL", "SAFE_CRACK_SOUNDSET", true )
+                    lastDialRotationAmount = 0
                     _onSpot = true
                 end
             end
+        elseif incorrectMovement then
+            _onSpot = false  
+            lastDialRotationAmount = 0
         end
     end
 end
@@ -142,8 +148,10 @@ function RotateSafeDial(rotationDirection)
         local multiplier
         if rotationDirection == "Anticlockwise" then
             multiplier = 1
+            lastDialRotationAmount = lastDialRotationAmount + 1
         elseif rotationDirection == "Clockwise" then
             multiplier = -1
+            lastDialRotationAmount = lastDialRotationAmount + 1
         end
         local rotationChange = multiplier * rotationPerNumber
         SafeDialRotation = SafeDialRotation + rotationChange
