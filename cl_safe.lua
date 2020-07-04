@@ -1,242 +1,220 @@
+_onSpot = false
+isMinigame = false
 _SafeCrackingStates = "Setup"
-_onSpot             = false
-_try                = 0
-isMinigame          = false
-lastDialRotationAmount = 0
 
-function createSafe(combination) 
-    RequestStreamedTextureDict( "MPSafeCracking", false )
-    RequestAmbientAudioBank( "SAFE_CRACK", false )
-    local res
-    isMinigame = not isMinigame
-    if isMinigame then        
-        InitializeSafe(combination)
-        while isMinigame do
-            playFx("mini@safe_cracking", "idle_base")
-            FreezeEntityPosition(PlayerPedId(), true)
-            DrawSprites(true)
-            res = RunMiniGame()
-            
-            if res == true then
-                return res
-            elseif res == false then
-                return res
-            end
-        
-            Citizen.Wait(0)
-        end
-        
-    else
-        FreezeEntityPosition(PlayerPedId(), false)
-    end
+function createSafe(combination)
+	local res
+	isMinigame = not isMinigame
+	RequestStreamedTextureDict("MPSafeCracking",false)
+	RequestAmbientAudioBank("SAFE_CRACK",false)
+
+	if isMinigame then
+		InitializeSafe(combination)
+		while isMinigame do
+			playFx("mini@safe_cracking","idle_base")
+			DrawSprites(true)
+			res = RunMiniGame()
+
+			if res == true then
+				return res
+			elseif res == false then
+				return res
+			end
+
+			Citizen.Wait(0)
+		end
+	end
 end
 
 function InitializeSafe(safeCombination)
-    _initDialRotationDirection = "Clockwise"
-    _safeCombination = safeCombination
+	_initDialRotationDirection = "Clockwise"
+	_safeCombination = safeCombination
 
-    RelockSafe()
-    SetSafeDialStartNumber()
+	RelockSafe()
+	SetSafeDialStartNumber()
 end
 
 function DrawSprites(drawLocks)
-    local textureDict = "MPSafeCracking"
-    local _aspectRatio = GetAspectRatio( true )
+	local textureDict = "MPSafeCracking"
+	local _aspectRatio = GetAspectRatio(true)
     
-    DrawSprite( textureDict, "Dial_BG", 0.48, 0.3, 0.3, _aspectRatio * 0.3, 0, 255, 255, 255, 255 )
-    DrawSprite( textureDict, "Dial", 0.48, 0.3, 0.3 * 0.5, _aspectRatio * 0.3 * 0.5, SafeDialRotation, 255, 255, 255, 255 )
+	DrawSprite(textureDict,"Dial_BG",0.48,0.3,0.3,_aspectRatio*0.3,0,255,255,255,255)
+	DrawSprite(textureDict,"Dial",0.48,0.3,0.3*0.5,_aspectRatio*0.3*0.5,SafeDialRotation,255,255,255,255)
 
-    if not drawLocks then
-        return
-    end
+	if not drawLocks then
+		return
+	end
 
-    local xPos = 0.6
-    local yPos = (0.3 * 0.5) + 0.035
-    for _,lockActive in pairs(_safeLockStatus) do
-        local lockString
-        if lockActive then
-            lockString = "lock_closed"
-        else
-            lockString = "lock_open"
-        end
-            
-        DrawSprite( textureDict, lockString, xPos, yPos, 0.025, _aspectRatio * 0.015, 0, 231, 194, 81, 255 )
-        yPos = yPos + 0.05
-    end
+	local xPos = 0.6
+	local yPos = (0.3*0.5)+0.035
+	for _,lockActive in pairs(_safeLockStatus) do
+		local lockString
+		if lockActive then
+			lockString = "lock_closed"
+		else
+			lockString = "lock_open"
+		end
+
+		DrawSprite(textureDict,lockString,xPos,yPos,0.025,_aspectRatio*0.015,0,231,194,81,255)
+		yPos = yPos + 0.05
+	end
 end
 
 function RunMiniGame()
-    if _SafeCrackingStates == "Setup" then
-        
+	if _SafeCrackingStates == "Setup" then
+		_SafeCrackingStates = "Cracking"
+	elseif _SafeCrackingStates == "Cracking" then
+		local isDead = GetEntityHealth(PlayerPedId()) <= 101
+		if isDead then
+			EndMiniGame(false)
+			return false
+		end
 
-        _SafeCrackingStates = "Cracking"
-    elseif _SafeCrackingStates == "Cracking" then
-        local isDead = GetEntityHealth(PlayerPedId()) <= 100
-        if isDead then
-            EndMiniGame(false)
-            return false
-        end
+		if IsControlJustPressed(0,33) then
+			EndMiniGame(false)
+			return false
+		end
 
-        if IsControlJustPressed( 0, 33 ) then
-            EndMiniGame(false)
-            return false
-        end
+		if IsControlJustPressed(0,32) then
+			if _onSpot then
+				ReleaseCurrentPin()
+				_onSpot = false
+				if IsSafeUnlocked() then
+					EndMiniGame(true,false)
+					return true
+				end
+			else
+				EndMiniGame(false)
+				return false
+			end
+ 		end
 
-        if IsControlJustPressed( 0, 32 ) then
-            if _onSpot then
-                ReleaseCurrentPin()
-                lastDialRotationAmount = 0
-                _onSpot = false
-                if IsSafeUnlocked() then
-                    EndMiniGame( true, false )
-                    return true
-                end
-            else
-                if _try >= 3 then
-                    EndMiniGame(false)
-                    lastDialRotationAmount = 0
-                    return false
-                else
-                    _try = _try + 1
-                    lastDialRotationAmount = 0
-                    PlaySoundFrontend(0, "TUMBLER_RESET", "SAFE_CRACK_SOUNDSET", true )
-                end
-            end
-        end
+		HandleSafeDialMovement()
 
-        HandleSafeDialMovement()
+		local incorrectMovement = _currentLockNum ~= 0 and _requiredDialRotationDirection ~= "Idle" and _currentDialRotationDirection ~= "Idle" and _currentDialRotationDirection ~= _requiredDialRotationDirection
 
-        local incorrectMovement = _currentLockNum ~= 0 and
-            _requiredDialRotationDirection ~= "Idle" and
-            _currentDialRotationDirection ~= "Idle" and
-            _currentDialRotationDirection ~= _requiredDialRotationDirection
-
-        if not incorrectMovement then
-            local currentDialNumber = GetCurrentSafeDialNumber(SafeDialRotation)
-            local correctMovement = _requiredDialRotationDirection ~= "Idle" and
-                                  (_currentDialRotationDirection == _requiredDialRotationDirection or
-                                   _lastDialRotationDirection == _requiredDialRotationDirection)  
-            if correctMovement then
-                local pinUnlocked = _safeLockStatus[_currentLockNum] and currentDialNumber == _safeCombination[_currentLockNum]
-                if pinUnlocked and lastDialRotationAmount >= 25  then
-                    PlaySoundFrontend(0, "TUMBLER_PIN_FALL", "SAFE_CRACK_SOUNDSET", true )
-                    lastDialRotationAmount = 0
-                    _onSpot = true
-                end
-            end
-        elseif incorrectMovement then
-            _onSpot = false  
-            lastDialRotationAmount = 0
-        end
-    end
+		if not incorrectMovement then
+			local currentDialNumber = GetCurrentSafeDialNumber(SafeDialRotation)
+			local correctMovement = _requiredDialRotationDirection ~= "Idle" and (_currentDialRotationDirection == _requiredDialRotationDirection or _lastDialRotationDirection == _requiredDialRotationDirection)  
+			if correctMovement then
+				local pinUnlocked = _safeLockStatus[_currentLockNum] and currentDialNumber == _safeCombination[_currentLockNum]
+				if pinUnlocked then
+					PlaySoundFrontend(0,"TUMBLER_PIN_FALL","SAFE_CRACK_SOUNDSET",true)
+					_onSpot = true
+				end
+			end
+		elseif incorrectMovement then
+			_onSpot = false
+		end
+	end
 end
 
-function HandleSafeDialMovement()                
-    if IsControlJustPressed( 0, 34 ) then
-        RotateSafeDial("Anticlockwise")
-    elseif IsControlJustPressed( 0, 35 ) then
-        RotateSafeDial("Clockwise")
-    else
-        RotateSafeDial("Idle")
-    end
+function HandleSafeDialMovement()
+	if IsControlJustPressed(0,34) then
+		RotateSafeDial("Anticlockwise")
+	elseif IsControlJustPressed(0,35) then
+		RotateSafeDial("Clockwise")
+	else
+		RotateSafeDial("Idle")
+	end
 end
 
 function RotateSafeDial(rotationDirection)
-    
-    if rotationDirection == "Anticlockwise" or rotationDirection == "Clockwise" then
-        local rotationPerNumber = 3.6
-        local multiplier
-        if rotationDirection == "Anticlockwise" then
-            multiplier = 1
-            lastDialRotationAmount = lastDialRotationAmount + 1
-        elseif rotationDirection == "Clockwise" then
-            multiplier = -1
-            lastDialRotationAmount = lastDialRotationAmount + 1
-        end
-        local rotationChange = multiplier * rotationPerNumber
-        SafeDialRotation = SafeDialRotation + rotationChange
-        PlaySoundFrontend( 0, "TUMBLER_TURN", "SAFE_CRACK_SOUNDSET", true )
-    end
+	if rotationDirection == "Anticlockwise" or rotationDirection == "Clockwise" then
+		local multiplier
+		local rotationPerNumber = 3.6
+		if rotationDirection == "Anticlockwise" then
+			multiplier = 1
+		elseif rotationDirection == "Clockwise" then
+			multiplier = -1
+		end
 
-    _currentDialRotationDirection = rotationDirection
-    _lastDialRotationDirection = rotationDirection
+		local rotationChange = multiplier * rotationPerNumber
+		SafeDialRotation = SafeDialRotation + rotationChange
+		PlaySoundFrontend(0,"TUMBLER_TURN","SAFE_CRACK_SOUNDSET",true)
+	end
+
+	_currentDialRotationDirection = rotationDirection
+	_lastDialRotationDirection = rotationDirection
 end
 
 function SetSafeDialStartNumber()
-    local dialStartNumber = math.random(0, 100)
-    SafeDialRotation = 3.6 * dialStartNumber
+	local dialStartNumber = math.random(0,100)
+	SafeDialRotation = 3.6 * dialStartNumber
 end
 
 function RelockSafe()
-    if not _safeCombination then return end
+	if not _safeCombination then
+		return
+	end
     
-    _safeLockStatus = InitSafeLocks()
-    _currentLockNum = 1
-    _try = 0
-    _requiredDialRotationDirection = _initDialRotationDirection
-    _onSpot = false
+	_safeLockStatus = InitSafeLocks()
+	_currentLockNum = 1
+	_requiredDialRotationDirection = _initDialRotationDirection
+	_onSpot = false
 
-    for i=1, #_safeCombination do
-        _safeLockStatus[i] = true
-    end
+	for i = 1,#_safeCombination do
+		_safeLockStatus[i] = true
+	end
 end
 
-function InitSafeLocks() -- Load the locks
-    if not _safeCombination then
-        return
-    end
+function InitSafeLocks()
+	if not _safeCombination then
+		return
+	end
     
-    local locks = {}
-    for i=1, #_safeCombination do
-        table.insert(locks, true)
-    end
+	local locks = {}
+ 	for i = 1,#_safeCombination do
+		table.insert(locks,true)
+	end
 
-    return locks
+	return locks
 end
 
 function GetCurrentSafeDialNumber(currentDialAngle)
-    local number = math.floor(100 * (currentDialAngle / 360))
-    if number > 0 then number = 100 - number end
+	local number = math.floor(100*(currentDialAngle/360))
+	if number > 0 then
+		number = 100 - number
+	end
 
-    return math.abs(number)
+	return math.abs(number)
 end
 
 function ReleaseCurrentPin()
-    _safeLockStatus[_currentLockNum] = false
-    _currentLockNum = _currentLockNum + 1
+	_safeLockStatus[_currentLockNum] = false
+	_currentLockNum = _currentLockNum + 1
 
-    if _requiredDialRotationDirection == "Anticlockwise" then
-        _requiredDialRotationDirection = "Clockwise"
-    else
-        _requiredDialRotationDirection = "Anticlockwise"
-    end
-    
-    PlaySoundFrontend(0, "TUMBLER_PIN_FALL_FINAL", "SAFE_CRACK_SOUNDSET", true )
+	if _requiredDialRotationDirection == "Anticlockwise" then
+		_requiredDialRotationDirection = "Clockwise"
+	else
+		_requiredDialRotationDirection = "Anticlockwise"
+	end
+
+	PlaySoundFrontend(0,"TUMBLER_PIN_FALL_FINAL","SAFE_CRACK_SOUNDSET",true)
 end
 
--- Verifica se o cofre foi finalizado
 function IsSafeUnlocked()
-    return _safeLockStatus[_currentLockNum] == nil
+	return _safeLockStatus[_currentLockNum] == nil
 end
 
--- Finaliza o minigame. (Adicionar handle dependendo do safeUnlocked)
 function EndMiniGame(safeUnlocked)
-    if safeUnlocked then
-        PlaySoundFrontend(0, "SAFE_DOOR_OPEN", "SAFE_CRACK_SOUNDSET", true )
-    else
-        PlaySoundFrontend(0, "SAFE_DOOR_CLOSE", "SAFE_CRACK_SOUNDSET", true )
-    end
-    isMinigame = false
-    SafeCrackingStates = "Setup"
-    FreezeEntityPosition(PlayerPedId(),false)
-    ClearPedTasks(PlayerPedId())
+	if safeUnlocked then
+		PlaySoundFrontend(0,"SAFE_DOOR_OPEN","SAFE_CRACK_SOUNDSET",true)
+	else
+		PlaySoundFrontend(0,"SAFE_DOOR_CLOSE","SAFE_CRACK_SOUNDSET",true)
+	end
+	isMinigame = false
+	SafeCrackingStates = "Setup"
+	ClearPedTasksImmediately(PlayerPedId())
 end
 
 function playFx(dict,anim)
-    RequestAnimDict(dict)
-    while not HasAnimDictLoaded(dict) do Wait(10) end
-    TaskPlayAnim(PlayerPedId(), dict, anim, 1.5, 1.5, -1, 16, 0, 0, 0, 0)
+	RequestAnimDict(dict)
+	while not HasAnimDictLoaded(dict) do
+		Wait(10)
+	end
+
+	TaskPlayAnim(PlayerPedId(),dict,anim,3.0,3.0,-1,1,0,0,0,0)
 end
 
-
-exports("createSafe", createSafe)
+exports("createSafe",createSafe)
