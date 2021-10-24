@@ -11,7 +11,6 @@ function createSafe(combination)
 	if isMinigame then
 		InitializeSafe(combination)
 		while isMinigame do
-			playFx("mini@safe_cracking","idle_base")
 			DrawSprites(true)
 			res = RunMiniGame()
 
@@ -109,12 +108,34 @@ function RunMiniGame()
 	end
 end
 
+local Busy = false
 function HandleSafeDialMovement()
-	if IsControlJustPressed(0,34) then
-		RotateSafeDial("Anticlockwise")
-	elseif IsControlJustPressed(0,35) then
-		RotateSafeDial("Clockwise")
-	else
+	if IsControlJustPressed(1, 34) and not Busy then 
+		Busy = true
+		Citizen.CreateThread(function()
+			playFx("mini@safe_cracking","dial_turn_anti_normal")
+			RotateSafeDial("Anticlockwise")
+			Citizen.Wait(175)
+			while IsControlPressed(1, 34) do
+				RotateSafeDial("Anticlockwise")
+				Citizen.Wait(125)
+			end
+			Busy = false
+		end)
+	elseif IsControlJustPressed(1, 35) and not Busy then 
+		Busy = true
+		Citizen.CreateThread(function()
+			playFx("mini@safe_cracking","dial_turn_clock_normal")
+			RotateSafeDial("Clockwise")
+			Citizen.Wait(175)
+			while IsControlPressed(1, 35) do
+				RotateSafeDial("Clockwise")
+				Citizen.Wait(125)
+			end
+			Busy = false
+		end)
+	elseif not Busy then
+		playFx("mini@safe_cracking","idle_base")
 		RotateSafeDial("Idle")
 	end
 end
